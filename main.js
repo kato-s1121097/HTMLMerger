@@ -2,8 +2,158 @@
  * File: main.js
  * Description: HTMLMergerのメイン部分
  * Create: 2022/05/17(Tue)
- * Update: 2022/05/17(Tue)
+ * Update: 2022/05/18(Wed)
+ * 			・タグ管理のクラス化
  **************************************************/
+
+/*******************************************************************
+ * Class: TagManager
+ * Description: タグの配列(tags)を管理するクラス
+ ******************************************************************/
+class TagManager
+{
+	// Tagオブジェクトの配列 (Tag { data:str, type:int })
+	tags;
+
+	constructor( src )
+	{
+		this.initTags( src );
+	}
+
+	/*******************************************************************
+	 * Method: initTags
+	 * Description: tagsフィールドをsrcから取得したタグで初期化する
+	 * Params: src = link,scriptタグを取得する文字列
+	 ******************************************************************/
+	initTags( src )
+	{
+		this.tags = [];
+
+		// srcが空文字列やundefinedだったらtagsを空配列にして終了
+		if ( src === '' || typeof src === 'undefined' ) return;
+	
+		// linkタグを取得
+		let link_tags = src.match( /<link[^>]*>/gi );
+	
+		// linkタグが存在していたら結果にタグオブジェクトを追加
+		if ( link_tags )
+		{
+			link_tags.forEach( ( link_tag ) => {
+				this.tags.push( { data: link_tag, type: TAG_LINK } );
+			});
+		}
+	
+		// scriptタグを取得
+		let script_tags = src.match( /<script[^>]*>([^<]*<\/script>)?/gi );
+	
+		// scriptタグが存在していたら結果にタグオブジェクトを追加
+		if ( script_tags )
+		{
+			script_tags.forEach( ( script_tag ) => {
+				this.tags.push( { data: script_tag, type: TAG_SCRIPT } );
+			});
+		}
+	}
+
+	getTags()
+	{
+		return this.tags;
+	}
+
+	getTag( index )
+	{
+		return this.tags[index];
+	}
+
+	getTagData( index )
+	{
+		return this.tags[index].data;
+	}
+
+	getTagType( index )
+	{
+		return this.tags[index].type;
+	}
+
+	setTag( index, tag )
+	{
+		if ( index <= 0 || typeof tag === 'undefined' ) return;
+
+		this.tags[index] = tag;
+	}
+
+	pushTag( tag )
+	{
+		this.tags.push( tag );
+	}
+
+	/*************************************************************************
+	 * Method: removeTagByAttr
+	 * Description: attrに指定した属性にstrが含まているタグをtagsから除外する
+	 * params: attr = strを探す属性, str = attrに指定した属性値に含まれている場合にタグを除外する文字列
+	 ************************************************************************/
+	removeTagByAttr( attr, str )
+	{
+		// マッチングに使用する正規表現
+		let attr_search = RegExp( attr + ' *=[^\"]*\"[^\"]*\"', 'i' );
+		let str_search = RegExp( '(?<=\").*' + str + '.*(?=\")' );
+
+		// 除外するタグのインデックス
+		let remove_indexes = [];
+		for ( let i = 0; i < this.tags.length; i++ )
+		{
+			// 属性マッチング
+			let attr_match = this.tags[i].data.match( attr_search );
+
+			// タグが指定された属性を持っていなければスキップ
+			if ( attr_match === null ) continue;
+
+			console.log( attr_match );
+
+			// strマッチング
+			let str_match = attr_match[0].match( str_search );
+
+			// マッチングしたらタグを除外配列に追加(ここで除外するとループが壊れるため)
+			if ( str_match !== null ) remove_indexes.push( i );
+		}
+
+		// 除外処理
+		remove_indexes.forEach( ( remove_index ) => {
+			console.log( `${this.tags[remove_index].data}が除外されました` );
+			this.tags.splice( remove_index, 1 );
+		});
+	}
+
+	/***************************************************************
+	 * Method: createFileNames
+	 * Description: tagsからファイル名の配列を生成して返す
+	 * Return: file名の文字列配列またはnull
+	 **************************************************************/
+	createFileNames()
+	{
+		// tagsに要素が入っていなければnullを返す
+		if ( this.tags === null || this.tags.length <= 0 ) return null;
+
+		// ファイル名
+		let filenames = [];
+
+		// 全てのタグに対して処理
+		this.tags.forEach( ( tag ) => {
+			// 属性＞ダブルクォーテーション＞URLの順で抜き出し、URLをファイル名の配列に追加
+			let attr = tag.data.match( ATTR_PATTERN[tag.type] );
+
+			// 属性が無い = 埋め込みスクリプトだったら飛ばす
+			if ( !attr ) return;
+
+			let quot = attr[0].match( /\"[^\"]*\"/g );
+			let url = quot[0].match( /(?<=\").*(?=\")/g );
+			filenames.push( url[0] );
+		});
+
+		return filenames;
+	}
+}
+
 /********************************************************************
  * Function: printOutputArea
  * Description: #output-areaへstrをmodeで出力する
@@ -45,66 +195,6 @@ function outputFileNames( filenames )
 	});
 }
 
-/******************************************************************
- * Function: getTags
- * Description: srcから正規表現マッチングによって外部ファイル参照タグを取得し、呼び出し元に戻す
- * Params: src = 参照タグを探し出す元ソースのテキスト
- ******************************************************************/
-function getTags( src )
-{
-	let tags = [];
-
-	// linkタグを取得
-	let link_tags = src.match( /<link[^>]*>/g );
-
-	// linkタグが存在していたら結果にタグオブジェクトを追加
-	if ( link_tags )
-	{
-		link_tags.forEach( ( link_tag ) => {
-			tags.push( { data: link_tag, type: TAG_LINK } );
-		});
-	}
-
-	// scriptタグを取得
-	let script_tags = src.match( /<script[^>]*>([^<]*<\/script>)?/g );
-
-	// scriptタグが存在していたら結果にタグオブジェクトを追加
-	if ( script_tags )
-	{
-		script_tags.forEach( ( script_tag ) => {
-			tags.push( { data: script_tag, type: TAG_SCRIPT } );
-		});
-	}
-
-	return tags;
-}
-
-/***************************************************************
- * Function: getFileNames
- * Description: tagsから正規表現マッチングによりファイル名を取得し、呼び出し元へ返す
- * Params: tags = タグの文字列を集めた配列
- ***************************************************************/
-function getFileNames( tags )
-{
-	// ファイル名
-	let filenames = [];
-
-	// 全てのタグに対して処理
-	tags.forEach( ( tag ) => {
-		// 属性＞ダブルクォーテーション＞URLの順で抜き出し、URLをファイル名の配列に追加
-		let attr = tag.data.match( ATTR_PATTERN[tag.type] );
-
-		// 属性が無い = 埋め込みスクリプトだったら飛ばす
-		if ( !attr ) return;
-
-		let quot = attr[0].match( /\"[^\"]*\"/g );
-		let url = quot[0].match( /(?<=\").*(?=\")/g );
-		filenames.push( url[0] );
-	});
-
-	return filenames;
-}
-
 /**************************************************************
  * Function: downloadMergedFile
  * Description: textをデータとして持つファイル名filenameのテキストファイルをダウンロードする
@@ -131,7 +221,7 @@ function downloadMergedFile( text, filename )
 }
 
 // イベントハンドラ間で共有するグローバル変数
-var g_tags;
+var g_tag_manager;
 var g_src;
 var g_src_filename;
 var g_rest_files;
@@ -154,8 +244,9 @@ ref_files.onchange = ( e ) => {
 		reader.readAsText( files[i] );
 		reader.onload = () => {
 			// 読み込みタグの部分をファイルの内容で置換
-			let pattern = new RegExp( g_tags[i].data, 'g' );
-			g_src = g_src.replace( pattern, `${TAG_START[g_tags[i].type]}${reader.result}${TAG_END[g_tags[i].type]}` );
+			let pattern = new RegExp( g_tag_manager.getTagData( i ), 'g' );
+			const tag_type = g_tag_manager.getTagType( i );
+			g_src = g_src.replace( pattern, `${TAG_START[tag_type]}${reader.result}${TAG_END[tag_type]}` );
 
 			// 全てのファイルを処理し終わったらマージ済みファイルをダウンロード
 			if ( --g_rest_files <= 0 ) downloadMergedFile( g_src, g_src_filename );
@@ -186,15 +277,18 @@ src_html.onchange = ( e ) => {
 		ref_area.style.display = 'none';
 
 		// 読み込みタグや参照ファイル名を取得
-		let tags = getTags( reader.result );
+		g_tag_manager = new TagManager( reader.result );
 		// 参照ファイルが無ければ参照ファイルが無い事を出力して終了
-		if ( tags.length <= 0 )
+		if ( g_tag_manager.getTags().length <= 0 )
 		{
 			printOutputArea( '参照しているファイルはありません', PRINT_MODE_NEW );
 			return;
 		}
 
-		let filenames = getFileNames( tags );
+		g_tag_manager.removeTagByAttr( 'src', 'https?:' );
+		g_tag_manager.removeTagByAttr( 'href', 'https?:' );
+
+		let filenames = g_tag_manager.createFileNames();
 		// 埋め込みタグのみだった場合
 		if ( filenames.length <= 0 )
 		{
@@ -208,8 +302,7 @@ src_html.onchange = ( e ) => {
 		// 参照ファイル名を出力
 		outputFileNames( filenames );
 
-		// 読み込みタグや元ソースのテキストをグローバル変数に格納
-		g_tags = tags;
+		// 元ソースのテキストをグローバル変数に格納
 		g_src = reader.result;
 
 		// 参照ファイルエリアを表示
