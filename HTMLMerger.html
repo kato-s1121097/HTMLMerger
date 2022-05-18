@@ -2,202 +2,41 @@
 	File: HTMLMerger.html
 	Description: HTMLファイルをスタイルシートとスクリプトとマージして1つのHTMLファイルにするプログラム
 	Create: 2022/05/15(Sun)
-	Update: 2022/05/15(Sun)
+	Update: 2022/05/17(Tue)
+			・チュートリアルを追加
+			・スタイルシートとスクリプトを外部ファイル化
 -->
 <html>
 	<head>
-		<style>
-			.code-block {
-				background-color: gainsboro;
-				margin: 16px 0;
-				padding: 8px;
-				display: none;
-			}
-
-			.ref {
-				display: none;
-			}
-		</style>
+		<link rel="stylesheet" href="style.css">
 		<meta charset="utf-8">
 		<title>HTML Merger</title>
 	</head>
 	<body>
-		<input id="src-html" type="file">
+		<div id="tutorial-wrapper">
+			<div id="tutorial-modal">
+				<video id="tutorial-video" controls>
+					<source src="tutorial.mp4">
+					お使いのWebブラウザでは埋め込みビデオがサポートされていません
+				</video>	
+			</div>
+		</div>
+		<header>
+			<h2>HTML Merger(ver.1.0.0)</h2><span class="help-area">使用方法はこちらをクリック→<img class="help-btn" src="help_btn.png"></span>
+		</header>
+		<div class="file-area">
+			元となるHTMLファイル：<input id="src-html" type="file">
+		</div>
 		<div id="output-area" class="code-block"></div>
-		<input id="ref-files-text" class="ref" type="text">
-		<input id="ref-files" class="ref" type="file" multiple>
-		<script>
-			// 定数
-			const TAG_LINK = 0;
-			const TAG_SCRIPT = 1;
-			const TAG_START = [ '<style>', '<script>'];
-			const TAG_END = [ '</style>', '<' + '/script>'];
-			const ATTR_PATTERN = [ /href=\"[^\"]*\"/g, /src=\"[^\"]*\"/g ];	// 属性検索に使う正規表現パターン
-
-			/*******************************************************************
-			 * Function: outputFileNames
-			 * Description: 参照ファイル名を出力エリアと参照ファイルテキストボックスへ出力
-			 * params: filenames = 出力するファイル名の配列
-			 *******************************************************************/
-			function outputFileNames( filenames )
-			{
-				let output_area = document.querySelector( '#output-area' );
-				let ref_files_text = document.querySelector( '#ref-files-text' );
-
-				// 参照ファイルテキストボックスの内容を初期化
-				ref_files_text.value = "";
-				
-				// ファイルの通し番号の初期化(出力エリアへの出力用)
-				let num = 1;
-
-				// 出力
-				output_area.innerHTML = "参照されているスタイル＆スクリプトファイル<br>";
-
-				// 全ての参照ファイル名に対して処理
-				filenames.forEach( ( filename ) => {
-					// 出力エリアと参照ファイルテキストボックスへ参照ファイル名を出力
-					// 参照ファイルテキストボックスは/のままだと上手く参照されないため\に置換
-					output_area.innerHTML += `${num++}: ${filename}<br>`;
-					ref_files_text.value += `"${filename.replace( '/', '\\' )}" `;
-				});
-
-				// 出力エリアと参照ファイルテキストボックスを表示し、参照ファイルテキストボックスを選択
-				output_area.style.display = 'block';
-				ref_files_text.style.display = 'inline-block'
-				ref_files_text.select();
-			}
-
-			/******************************************************************
-			 * Function: getTags
-			 * Description: srcから正規表現マッチングによって外部ファイル参照タグを取得し、呼び出し元に戻す
-			 * Params: src = 参照タグを探し出す元ソースのテキスト
-			 ******************************************************************/
-			function getTags( src )
-			{
-				let tags = [];
-
-				// linkタグを取得
-				let link_tags = src.match( /<link[^>]*>/g );
-				link_tags.forEach( ( link_tag ) => {
-					tags.push( { data: link_tag, type: TAG_LINK } );
-
-				});
-
-				// scriptタグを取得
-				let script_tags = src.match( /<script[^>]*>[^<]*<\/script>/g );
-				script_tags.forEach( ( script_tag ) => {
-					tags.push( { data: script_tag, type: TAG_SCRIPT } );
-				});
-
-				return tags;
-			}
-
-			/***************************************************************
-			 * Function: getFileNames
-			 * Description: tagsから正規表現マッチングによりファイル名を取得し、呼び出し元へ返す
-			 * Params: tags = タグの文字列を集めた配列
-			 ***************************************************************/
-			function getFileNames( tags )
-			{
-				// ファイル名
-				let filenames = [];
-
-				// 全てのタグに対して処理
-				tags.forEach( ( tag ) => {
-					// 属性＞ダブルクォーテーション＞URLの順で抜き出し、URLをファイル名の配列に追加
-					let attr = tag.data.match( ATTR_PATTERN[tag.type] );
-					let quot = attr[0].match( /\"[^\"]*\"/g );
-					let url = quot[0].match( /(?<=\").*(?=\")/g );
-					filenames.push( url[0] );
-				});
-
-				return filenames;
-			}
-
-			/**************************************************************
-			 * Function: downloadMergedFile
-			 * Description: textをデータとして持つファイル名filenameのテキストファイルをダウンロードする
-			 * Params: text = ダウンロードするファイルに持たせるテキスト
-			 * 			filename = ダウンロードするファイル名
-			 **************************************************************/
-			function downloadMergedFile( text, filename )
-			{
-				const blob = new Blob( [text], { type: 'text/plain' } );
-				const link = document.createElement( 'a' );
-				link.href = URL.createObjectURL( blob );
-				link.download = filename + 'Merged.html';
-				link.click();
-			}
-
-			// イベントハンドラ間で共有するグローバル変数
-			var g_tags;
-			var g_src;
-			var g_src_filename;
-			var g_rest_files;
-
-			/********************************************************************
-			 * 参照ファイルの選択がされた際のイベントハンドラ
-			 * 元ファイルに参照ファイルをマージしたファイルのダウンロードを行う
-			 ********************************************************************/
-			const ref_files = document.querySelector( '#ref-files' );
-			ref_files.onchange = ( e ) => {
-				let files = e.target.files;
-
-				// 残りファイル数を初期化
-				g_rest_files = files.length;
-
-				// 全てのファイルに対して処理
-				for ( let i = 0; i < files.length; i++ )
-				{
-					let reader = new FileReader();
-					reader.readAsText( files[i] );
-					reader.onload = () => {
-						// 読み込みタグの部分をファイルの内容で置換
-						let pattern = new RegExp( g_tags[i].data, 'g' );
-						g_src = g_src.replace( pattern, `${TAG_START[g_tags[i].type]}${reader.result}${TAG_END[g_tags[i].type]}` );
-
-						// 全てのファイルを処理し終わったらマージ済みファイルをダウンロード
-						if ( --g_rest_files <= 0 ) downloadMergedFile( g_src, g_src_filename );
-					}
-				}
-			}
-
-			/***********************************************************************
-			 * 元ファイルが選択された際のイベントハンドラ
-			 * グローバル変数に元ファイルの情報を格納したり、参照ファイルの選択ボタンを表示する
-			 ***********************************************************************/
-			const src_html = document.querySelector( '#src-html' );
-			src_html.onchange = ( e ) => {
-				let file = e.target.files;
-
-				// 元ファイル名をグローバル変数に格納
-				g_src_filename = file[0].name;
-
-				// 元ファイルを読み込み
-				let reader = new FileReader();
-				reader.readAsText( file[0] );
-
-				// 元ファイルの読み込みが完了
-				reader.onload = ( e ) => 
-				{
-					// 読み込みタグや参照ファイル名を取得
-					let tags = getTags( reader.result );
-					let filenames = getFileNames( tags );
-
-					// 参照ファイルが無ければ終了
-					if ( filenames.length <= 0 ) return;
-
-					// 参照ファイル名を出力
-					outputFileNames( filenames );
-
-					// 読み込みタグや元ソースのテキストをグローバル変数に格納
-					g_tags = tags;
-					g_src = reader.result;
-
-					// 参照ファイル選択のボタンを表示
-					ref_files.style.display = 'inline-block';
-				}
-			}
-		</script>
+		<div class="ref-area">
+			<input id="ref-files-text" type="text"><br><br>
+			上のテキストボックスの内容をコピーして下のファイル選択を押して表示されるダイアログの「ファイル名」欄にペーストして開いてください<br>
+			<div class="file-area">
+				参照ファイル：<input id="ref-files" type="file" multiple>	
+			</div>
+		</div>
+		<script src="modal.js"></script>
+		<script src="define.js"></script>
+		<script src="main.js"></script>
 	</body>
 </html>
