@@ -14,6 +14,7 @@ class TagManager
 {
 	// Tagオブジェクトの配列 (Tag { data:str, type:int })
 	tags;
+	length;
 
 	constructor( src )
 	{
@@ -53,6 +54,8 @@ class TagManager
 				this.tags.push( { data: script_tag, type: TAG_SCRIPT } );
 			});
 		}
+
+		this.length = this.tags.length;
 	}
 
 	getTags()
@@ -79,12 +82,15 @@ class TagManager
 	{
 		if ( index <= 0 || typeof tag === 'undefined' ) return;
 
+		if ( typeof this.tags[index] === 'undefined' ) this.length++;
+
 		this.tags[index] = tag;
 	}
 
 	pushTag( tag )
 	{
 		this.tags.push( tag );
+		this.length++;
 	}
 
 	/*************************************************************************
@@ -122,6 +128,8 @@ class TagManager
 			console.log( `${this.tags[remove_index].data}が除外されました` );
 			this.tags.splice( remove_index, 1 );
 		});
+
+		this.length = this.tags.length;
 	}
 
 	/***************************************************************
@@ -191,7 +199,7 @@ function outputFileNames( filenames )
 		// 出力エリアと参照ファイルテキストボックスへ参照ファイル名を出力
 		// 参照ファイルテキストボックスは/のままだと上手く参照されないため\に置換
 		printOutputArea( `${num++}: ${filename}<br>`, PRINT_MODE_APPEND );
-		ref_files_text.value += `"${filename.replace( '/', '\\' )}" `;
+		ref_files_text.value += `"${filename.replace( /\//g, '\\' )}" `;
 	});
 }
 
@@ -208,7 +216,7 @@ function downloadMergedFile( text, filename )
 	link.href = URL.createObjectURL( blob );
 
 	// 拡張子がHTMLなら拡張子の部分をMerged.htmlに置換
-	if ( filename.match( /\.html/ ) !== null )
+	if ( /\.html/.test( filename ) )
 	{
 		link.download = filename.replace( /\.html/, 'Merged.html' );
 	}
@@ -236,6 +244,18 @@ ref_files.onchange = ( e ) => {
 
 	// 残りファイル数を初期化
 	g_rest_files = files.length;
+
+	if ( g_rest_files <= 0 )
+	{
+		showError( 'ファイルが選択されていません' );
+		return;
+	}
+
+	if ( g_tag_manager.length !== files.length )
+	{
+		showError( '参照ファイルの数が一致しません<br>テキストボックスの内容をそのままコピペしてください' );
+		return;
+	}
 
 	// 全てのファイルに対して処理
 	for ( let i = 0; i < files.length; i++ )
@@ -290,7 +310,7 @@ src_html.onchange = ( e ) => {
 
 		let filenames = g_tag_manager.createFileNames();
 		// 埋め込みタグのみだった場合
-		if ( filenames.length <= 0 )
+		if ( filenames === null || filenames.length <= 0 )
 		{
 			printOutputArea( '参照しているファイルはありません', PRINT_MODE_NEW );
 			return;

@@ -2,9 +2,8 @@
 	File: HTMLMerger.html
 	Description: HTMLファイルをスタイルシートとスクリプトとマージして1つのHTMLファイルにするプログラム
 	Create: 2022/05/15(Sun)
-	Update: 2022/05/17(Tue)
-			・チュートリアルを追加
-			・スタイルシートとスクリプトを外部ファイル化
+	Update: 2022/05/20(Fri)
+			・エラーモーダルを追加
 -->
 <html>
 	<head>
@@ -13,12 +12,18 @@
 		<title>HTML Merger</title>
 	</head>
 	<body>
-		<div id="tutorial-wrapper">
-			<div id="tutorial-modal">
+		<div id="tutorial-wrapper" class="modal-wrapper">
+			<div id="tutorial-modal" class="modal">
 				<video id="tutorial-video" controls>
 					<source src="tutorial.mp4">
 					お使いのWebブラウザでは埋め込みビデオがサポートされていません
 				</video>	
+			</div>
+		</div>
+		<div id="error-modal-wrapper" class="modal-wrapper">
+			<div id="error-modal" class="modal">
+				<h2>エラー</h2>
+				<div id="error-message" class="code-block"></div>
 			</div>
 		</div>
 		<header>

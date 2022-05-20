@@ -2,7 +2,7 @@
 	box-sizing: border-box;
 }
 
-#tutorial-wrapper {
+.modal-wrapper {
 	position: fixed;
 	top: 0;
 	left: 0;
@@ -12,17 +12,33 @@
 	display: none;
 }
 
-#tutorial-modal {
+.modal {
+	background-color: white;
 	position: fixed;
-	width: 640px;
-	height: 480px;
 	inset: 0;
 	margin: auto;
+}
+
+#tutorial-modal {
+	background-color: black;
+	width: 640px;
+	height: 480px;
 }
 
 #tutorial-video {
 	width: 640px;
 	height: 480px;
+}
+
+#error-modal {
+	width: 75%;
+	height: 256px;
+	padding: 8px;
+}
+
+#error-modal h2 {
+	color: red;
+	text-align: center;
 }
 
 header {
